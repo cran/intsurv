@@ -9,8 +9,8 @@ cox_cure(surv_formula, cure_formula,
          time, event, data, subset, contrasts = NULL,
          bootstrap = 0, firth = FALSE, surv_start, cure_start,
          em_max_iter = 200, em_rel_tol = 1e-5,
-         surv_max_iter = 200, surv_rel_tol = 1e-5,
-         cure_max_iter = 200, cure_rel_tol = 1e-5,
+         surv_max_iter = 30, surv_rel_tol = 1e-5,
+         cure_max_iter = 30, cure_rel_tol = 1e-5,
          tail_completion = c("zero", "exp", "zero-tau"),
          tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
          verbose = FALSE, ...)
@@ -19,8 +19,8 @@ cox_cure.fit(surv_x, cure_x, time, event, cure_intercept = TRUE,
              bootstrap = 0, firth = FALSE, surv_start, cure_start,
              surv_standardize = TRUE, cure_standardize = TRUE,
              em_max_iter = 200, em_rel_tol = 1e-5,
-             surv_max_iter = 200, surv_rel_tol = 1e-5,
-             cure_max_iter = 200, cure_rel_tol = 1e-5,
+             surv_max_iter = 30, surv_rel_tol = 1e-5,
+             cure_max_iter = 30, cure_rel_tol = 1e-5,
              tail_completion = c("zero", "exp", "zero-tau"),
              tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
              verbose = FALSE, ...)
@@ -185,9 +185,9 @@ x_mat <- matrix(rnorm(n_obs * p), nrow = n_obs, ncol = p)
 colnames(x_mat) <- paste0("x", seq_len(p))
 cure_beta <- rep(0.5, p)
 b0 <- - 1
-expit <- stats::binomial()$linkinv
+expit <- binomial()$linkinv
 ncure_prob <- expit(as.numeric(b0 + x_mat \%*\% cure_beta))
-is_cure <- 1 - stats::rbinom(n_obs, size = 1, prob = ncure_prob)
+is_cure <- 1 - rbinom(n_obs, size = 1, prob = ncure_prob)
 surv_beta <- rep(0.5, p)
 risk_score <- as.numeric(x_mat \%*\% surv_beta)
 event_time <- rexp(n_obs, exp(as.numeric(x_mat \%*\% surv_beta)))
@@ -234,7 +234,7 @@ BIC(fit1, fit2)
 
 ### Cox cure rate model with uncertain event status ==================
 ## simulate sample data
-sim_dat <- simData4cure(nSubject = 200, max_censor = 10,
+sim_dat <- simData4cure(nSubject = 200, max_censor = 10, lambda_censor = 0.1,
                         survMat = x_mat, cureMat = x_mat, b0 = 1)
 table(sim_dat$case)
 table(sim_dat$obs_event, useNA = "ifany")

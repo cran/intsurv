@@ -18,23 +18,33 @@
 
 ### prepare design matrix and response from formula inputs for survival models
 ##' @importFrom stats model.matrix.default model.frame.default .getXlevels
-prep_cure_model <- function(surv_formula, cure_formula, obs_time, obs_event,
-                            data, subset, contrasts = NULL)
+prep_cure_model <- function(surv_formula, cure_formula,
+                            obs_time, obs_event,
+                            data, subset, contrasts = NULL,
+                            eval_env = parent.frame())
 {
-    this_call <- match.call(expand.dots = FALSE)
+    this_call <- call0 <- match.call(expand.dots = FALSE)
     if (missing(surv_formula)) {
-        stop("The 'surv_formula' cannot be missing.",
+        stop("The survival model formula cannot be missing.",
              call. = FALSE)
     }
     if (missing(cure_formula)) {
-        stop("The 'cure_formula' cannot be missing.",
+        stop("The cure model formula cannot be missing.",
+             call. = FALSE)
+    }
+    if (missing(obs_time)) {
+        stop("The survival times cannot be missing.",
+             call. = FALSE)
+    }
+    if (missing(obs_time)) {
+        stop("The event indicators cannot be missing.",
              call. = FALSE)
     }
 
     ## 1. process formula for survival model
-    this_call$formula <- surv_formula
+    names(this_call)[names(this_call) == "surv_formula"] <- "formula"
     if (missing(data)) {
-        this_call$data <- environment(surv_formula)
+        this_call$data <- eval_env
     }
     matched_call <- match(c("formula", "data", "subset",
                             "obs_time", "obs_event"),
@@ -44,7 +54,8 @@ prep_cure_model <- function(surv_formula, cure_formula, obs_time, obs_event,
     this_call$drop.unused.levels <- TRUE
     this_call$na.action <- na.pass
     this_call[[1L]] <- quote(stats::model.frame.default)
-    mf <- eval(this_call, parent.frame())
+    mf <- eval(this_call, eval_env)
+    surv_formula <- attr(mf, "terms")
     mf2 <- stats::model.frame.default(surv_formula, mf,
                                       na.action = na.fail)
     ## suppress warnings on not used contrasts
@@ -64,9 +75,10 @@ prep_cure_model <- function(surv_formula, cure_formula, obs_time, obs_event,
     )
 
     ## 2. process cure formula
-    this_call$formula <- cure_formula
+    this_call <- call0
+    names(this_call)[names(this_call) == "cure_formula"] <- "formula"
     if (missing(data)) {
-        this_call$data <- environment(cure_formula)
+        this_call$data <- eval_env
     }
     matched_call <- match(c("formula", "data", "subset"),
                           names(this_call), nomatch = 0L)
@@ -75,7 +87,8 @@ prep_cure_model <- function(surv_formula, cure_formula, obs_time, obs_event,
     this_call$drop.unused.levels <- TRUE
     this_call$na.action <- na.fail
     this_call[[1L]] <- quote(stats::model.frame.default)
-    mf <- eval(this_call, parent.frame())
+    mf <- eval(this_call, eval_env)
+    cure_formula <- attr(mf, "terms")
     ## suppress warnings on not used contrasts
     suppressWarnings({
         mm <- stats::model.matrix.default(cure_formula, data = mf,

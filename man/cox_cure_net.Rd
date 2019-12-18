@@ -14,8 +14,8 @@ cox_cure_net(surv_formula, cure_formula, time, event,
              surv_start, cure_start,
              surv_standardize = TRUE, cure_standardize = TRUE,
              em_max_iter = 200, em_rel_tol = 1e-5,
-             surv_max_iter = 200, surv_rel_tol = 1e-5,
-             cure_max_iter = 200, cure_rel_tol = 1e-5,
+             surv_max_iter = 10, surv_rel_tol = 1e-5,
+             cure_max_iter = 10, cure_rel_tol = 1e-5,
              tail_completion = c("zero", "exp", "zero-tau"),
              tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
              verbose = FALSE, ...)
@@ -28,8 +28,8 @@ cox_cure_net.fit(surv_x, cure_x, time, event, cure_intercept = TRUE,
                  surv_start, cure_start,
                  surv_standardize = TRUE, cure_standardize = TRUE,
                  em_max_iter = 200, em_rel_tol = 1e-5,
-                 surv_max_iter = 200, surv_rel_tol = 1e-5,
-                 cure_max_iter = 200, cure_rel_tol = 1e-5,
+                 surv_max_iter = 10, surv_rel_tol = 1e-5,
+                 cure_max_iter = 10, cure_rel_tol = 1e-5,
                  tail_completion = c("zero", "exp", "zero-tau"),
                  tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
                  verbose = FALSE, ...)
@@ -145,7 +145,7 @@ their L1-norm.  The default value is \code{1e-5}.}
 
 \item{surv_max_iter}{A positive integer specifying the maximum iteration
 number of the M-step routine related to the survival model component.
-The default value is \code{200}.}
+The default value is \code{10} to encourage faster convergence.}
 
 \item{surv_rel_tol}{A positive number specifying the tolerance that
 determines the convergence of the M-step related to the survival model
@@ -157,7 +157,7 @@ default value is \code{1e-5}.}
 
 \item{cure_max_iter}{A positive integer specifying the maximum iteration
 number of the M-step routine related to the cure rate model component.
-The default value is \code{200}.}
+The default value is \code{10} to encourage faster convergence.}
 
 \item{cure_rel_tol}{A positive number specifying the tolerance that
 determines the convergence of the M-step related to the cure rate model
@@ -237,7 +237,7 @@ n_obs <- 100
 p <- 10
 x_mat <- matrix(rnorm(n_obs * p), nrow = n_obs, ncol = p)
 colnames(x_mat) <- paste0("x", seq_len(p))
-surv_beta <- c(rep(0, p - 3), rep(1, 3))
+surv_beta <- c(rep(0, p - 5), rep(1, 5))
 cure_beta <- c(rep(1, 2), rep(0, p - 2))
 dat <- simData4cure(nSubject = n_obs, lambda_censor = 0.01,
                     max_censor = 10, survMat = x_mat,
@@ -246,7 +246,7 @@ dat <- simData4cure(nSubject = n_obs, lambda_censor = 0.01,
 
 ## model-fitting from given design matrices
 fit1 <- cox_cure_net.fit(x_mat, x_mat, dat$obs_time, dat$obs_event,
-                         surv_nlambda = 5, cure_nlambda = 5,
+                         surv_nlambda = 10, cure_nlambda = 10,
                          surv_alpha = 0.8, cure_alpha = 0.8)
 
 ## model-fitting from given model formula
@@ -255,7 +255,6 @@ surv_fm <- as.formula(sprintf("~ \%s", fm))
 cure_fm <- surv_fm
 fit2 <- cox_cure_net(surv_fm, cure_fm, data = dat,
                      time = obs_time, event = obs_event,
-                     surv_nlambda = 5, cure_nlambda = 5,
                      surv_alpha = 0.5, cure_alpha = 0.5)
 
 ## summary of BIC's
@@ -274,7 +273,7 @@ n_obs <- 100
 p <- 10
 x_mat <- matrix(rnorm(n_obs * p), nrow = n_obs, ncol = p)
 colnames(x_mat) <- paste0("x", seq_len(p))
-surv_beta <- c(rep(0, p - 3), rep(1, 3))
+surv_beta <- c(rep(0, p - 5), rep(1, 5))
 cure_beta <- c(rep(1, 2), rep(0, p - 2))
 dat <- simData4cure(nSubject = n_obs, lambda_censor = 0.01,
                     max_censor = 10, survMat = x_mat,

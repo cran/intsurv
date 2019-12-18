@@ -28,8 +28,8 @@
 ##'          time, event, data, subset, contrasts = NULL,
 ##'          bootstrap = 0, firth = FALSE, surv_start, cure_start,
 ##'          em_max_iter = 200, em_rel_tol = 1e-5,
-##'          surv_max_iter = 200, surv_rel_tol = 1e-5,
-##'          cure_max_iter = 200, cure_rel_tol = 1e-5,
+##'          surv_max_iter = 30, surv_rel_tol = 1e-5,
+##'          cure_max_iter = 30, cure_rel_tol = 1e-5,
 ##'          tail_completion = c("zero", "exp", "zero-tau"),
 ##'          tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
 ##'          verbose = FALSE, ...)
@@ -164,9 +164,9 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
                      surv_start, cure_start,
                      em_max_iter = 200,
                      em_rel_tol = 1e-5,
-                     surv_max_iter = 200,
+                     surv_max_iter = 30,
                      surv_rel_tol = 1e-5,
-                     cure_max_iter = 200,
+                     cure_max_iter = 30,
                      cure_rel_tol = 1e-5,
                      tail_completion = c("zero", "exp", "zero-tau"),
                      tail_tau = NULL,
@@ -178,13 +178,14 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
     warn_dots(...)
 
     ## record function call
-    this_call <- match.call()
+    call0 <- match.call()
 
     ## prepare to call function prep_cure_model
     this_call <- match.call(expand.dots = FALSE)
     ## time is also a function name.  rename to avoid potential issues.
     names(this_call)[which(names(this_call) == "time")] <- "obs_time"
     names(this_call)[which(names(this_call) == "event")] <- "obs_event"
+    this_call$eval_env <- parent.frame()
     matched_call <- match(names(formals(prep_cure_model)),
                           names(this_call), nomatch = 0L)
     model_call <- this_call[c(1L, matched_call)]
@@ -340,7 +341,7 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
             }
     }
     ## add function call
-    out$call <- this_call
+    out$call <- call0
     ## return
     out
 }
@@ -353,8 +354,8 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
 ##'              bootstrap = 0, firth = FALSE, surv_start, cure_start,
 ##'              surv_standardize = TRUE, cure_standardize = TRUE,
 ##'              em_max_iter = 200, em_rel_tol = 1e-5,
-##'              surv_max_iter = 200, surv_rel_tol = 1e-5,
-##'              cure_max_iter = 200, cure_rel_tol = 1e-5,
+##'              surv_max_iter = 30, surv_rel_tol = 1e-5,
+##'              cure_max_iter = 30, cure_rel_tol = 1e-5,
 ##'              tail_completion = c("zero", "exp", "zero-tau"),
 ##'              tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
 ##'              verbose = FALSE, ...)
@@ -390,9 +391,9 @@ cox_cure.fit <- function(surv_x, cure_x, time, event,
                          cure_standardize = TRUE,
                          em_max_iter = 200,
                          em_rel_tol = 1e-5,
-                         surv_max_iter = 200,
+                         surv_max_iter = 30,
                          surv_rel_tol = 1e-5,
-                         cure_max_iter = 200,
+                         cure_max_iter = 30,
                          cure_rel_tol = 1e-5,
                          tail_completion = c("zero", "exp", "zero-tau"),
                          tail_tau = NULL,

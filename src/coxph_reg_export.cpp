@@ -18,10 +18,7 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp11)]]
-
-#include "coxph_reg.h"
-#include "utils.h"
-
+#include <intsurv.h>
 
 // fit regular Cox model that allows non-integer "event" and tied events
 // [[Rcpp::export]]
@@ -37,9 +34,7 @@ Rcpp::List rcpp_coxph(const arma::vec& time,
     )
 {
     // define object
-    Intsurv::CoxphReg object {
-        Intsurv::CoxphReg(time, event, x)
-    };
+    Intsurv::CoxphReg object { time, event, x };
     // set offset if it is not zero
     if (! Intsurv::isAlmostEqual(arma::sum(arma::abs(offset)), 0.0)) {
         object.set_offset(offset, false);
@@ -91,7 +86,7 @@ Rcpp::List rcpp_reg_coxph1(const arma::vec& time,
                            const bool& early_stop = false,
                            const bool& verbose = false)
 {
-    Intsurv::CoxphReg object { Intsurv::CoxphReg(time, event, x) };
+    Intsurv::CoxphReg object { time, event, x };
     // set offset if it is not zero
     if (! Intsurv::isAlmostEqual(arma::sum(arma::abs(offset)), 0.0)) {
         object.set_offset(offset, false);
@@ -151,7 +146,7 @@ Rcpp::List rcpp_reg_coxph2(const arma::vec& time,
                            const bool& verbose = false
     )
 {
-    Intsurv::CoxphReg object { Intsurv::CoxphReg(time, event, x) };
+    Intsurv::CoxphReg object { time, event, x };
     // set offset if it is not zero
     if (! Intsurv::isAlmostEqual(arma::sum(arma::abs(offset)), 0.0)) {
         object.set_offset(offset, false);
