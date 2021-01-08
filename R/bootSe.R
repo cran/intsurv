@@ -1,6 +1,6 @@
 ##
 ## intsurv: Integrative Survival Models
-## Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+## Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 ##
 ## This file is part of the R package intsurv.
 ##
@@ -35,10 +35,6 @@ NULL
 ##' be further computed based on estimates from bootstrap samples by users on
 ##' their own.  The \code{return_beta = TRUE} is implied, when \code{B = 1} is
 ##' specified.
-##'
-##' @usage
-##' bootSe(object, B = 50, se = c("inter-quartile", "mad", "sd"),
-##'        return_beta = FALSE, ...)
 ##'
 ##' @param object \code{\link{iCoxph-class}} object.
 ##' @param B A positive integer specifying number of bootstrap samples used for

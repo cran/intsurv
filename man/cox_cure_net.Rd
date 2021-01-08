@@ -5,34 +5,81 @@
 \alias{cox_cure_net.fit}
 \title{Regularized Cox Cure Rate Model}
 \usage{
-cox_cure_net(surv_formula, cure_formula, time, event,
-             data, subset, contrasts = NULL,
-             surv_lambda, surv_alpha = 1, surv_nlambda = 10,
-             surv_lambda_min_ratio = 1e-1, surv_l1_penalty_factor,
-             cure_lambda, cure_alpha = 1, cure_nlambda = 10,
-             cure_lambda_min_ratio = 1e-1, cure_l1_penalty_factor,
-             surv_start, cure_start,
-             surv_standardize = TRUE, cure_standardize = TRUE,
-             em_max_iter = 200, em_rel_tol = 1e-5,
-             surv_max_iter = 10, surv_rel_tol = 1e-5,
-             cure_max_iter = 10, cure_rel_tol = 1e-5,
-             tail_completion = c("zero", "exp", "zero-tau"),
-             tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
-             verbose = FALSE, ...)
+cox_cure_net(
+  surv_formula,
+  cure_formula,
+  time,
+  event,
+  data,
+  subset,
+  contrasts = NULL,
+  surv_lambda = NULL,
+  surv_alpha = 1,
+  surv_nlambda = 10,
+  surv_lambda_min_ratio = 0.1,
+  surv_l1_penalty_factor = NULL,
+  cure_lambda = NULL,
+  cure_alpha = 1,
+  cure_nlambda = 10,
+  cure_lambda_min_ratio = 0.1,
+  cure_l1_penalty_factor = NULL,
+  cv_nfolds = 0,
+  surv_start = NULL,
+  cure_start = NULL,
+  surv_offset = NULL,
+  cure_offset = NULL,
+  surv_standardize = TRUE,
+  cure_standardize = TRUE,
+  em_max_iter = 200,
+  em_rel_tol = 1e-05,
+  surv_max_iter = 10,
+  surv_rel_tol = 1e-05,
+  cure_max_iter = 10,
+  cure_rel_tol = 1e-05,
+  tail_completion = c("zero", "exp", "zero-tau"),
+  tail_tau = NULL,
+  pmin = 1e-05,
+  early_stop = TRUE,
+  verbose = FALSE,
+  ...
+)
 
-cox_cure_net.fit(surv_x, cure_x, time, event, cure_intercept = TRUE,
-                 surv_lambda, surv_alpha = 1, surv_nlambda = 10,
-                 surv_lambda_min_ratio = 1e-1, surv_l1_penalty_factor,
-                 cure_lambda, cure_alpha = 1, cure_nlambda = 10,
-                 cure_lambda_min_ratio = 1e-1, cure_l1_penalty_factor,
-                 surv_start, cure_start,
-                 surv_standardize = TRUE, cure_standardize = TRUE,
-                 em_max_iter = 200, em_rel_tol = 1e-5,
-                 surv_max_iter = 10, surv_rel_tol = 1e-5,
-                 cure_max_iter = 10, cure_rel_tol = 1e-5,
-                 tail_completion = c("zero", "exp", "zero-tau"),
-                 tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
-                 verbose = FALSE, ...)
+cox_cure_net.fit(
+  surv_x,
+  cure_x,
+  time,
+  event,
+  cure_intercept = TRUE,
+  surv_lambda = NULL,
+  surv_alpha = 1,
+  surv_nlambda = 10,
+  surv_lambda_min_ratio = 0.1,
+  surv_l1_penalty_factor = NULL,
+  cure_lambda = NULL,
+  cure_alpha = 1,
+  cure_nlambda = 10,
+  cure_lambda_min_ratio = 0.1,
+  cure_l1_penalty_factor = NULL,
+  cv_nfolds = 0,
+  surv_start = NULL,
+  cure_start = NULL,
+  surv_offset = NULL,
+  cure_offset = NULL,
+  surv_standardize = TRUE,
+  cure_standardize = TRUE,
+  em_max_iter = 200,
+  em_rel_tol = 1e-05,
+  surv_max_iter = 10,
+  surv_rel_tol = 1e-05,
+  cure_max_iter = 10,
+  cure_rel_tol = 1e-05,
+  tail_completion = c("zero", "exp", "zero-tau"),
+  tail_tau = NULL,
+  pmin = 1e-05,
+  early_stop = TRUE,
+  verbose = FALSE,
+  ...
+)
 }
 \arguments{
 \item{surv_formula}{A formula object starting with \code{~} for the model
@@ -41,7 +88,7 @@ included even if an intercept is specified or implied in the model
 formula.  A model formula with an intercept term only is not allowed.}
 
 \item{cure_formula}{A formula object starting with \code{~} for the model
-formula in cure rate model part.  For logistic model, an intercept term
+formula in incidence model part.  For logistic model, an intercept term
 is included by default and can be excluded by adding \code{+ 0} or
 \code{- 1} to the model formula.}
 
@@ -66,72 +113,73 @@ names are the names of columns of data containing factors.  See
 \code{contrasts.arg} of \code{\link[stats]{model.matrix.default}} for
 details.}
 
-\item{surv_lambda}{A numeric vector consists of non-negative values
-representing the tuning parameter sequence for the survival model part.}
+\item{surv_lambda, cure_lambda}{A numeric vector consists of nonnegative
+values representing the tuning parameter sequence for the survival model
+part or the incidence model part.}
 
-\item{surv_alpha}{A number between 0 and 1 for tuning the elastic net
-penalty for the survival model part.  If it is one, the elastic penalty
-will reduce to the well-known lasso penalty.  If it is zero, the ridge
-penalty will be used.}
+\item{surv_alpha, cure_alpha}{A number between 0 and 1 for tuning the elastic
+net penalty for the survival model part or the incidence model part.  If
+it is one, the elastic penalty will reduce to the well-known lasso
+penalty.  If it is zero, the ridge penalty will be used.}
 
-\item{surv_nlambda}{A positive number specifying the number of
-\code{surv_lambda} if \code{surv_lambda} is not specified.  The default
-value is 10.}
+\item{surv_nlambda, cure_nlambda}{A positive number specifying the number of
+\code{surv_lambda} or \code{cure_lambda} if \code{surv_lambda} or
+\code{cure_lambda} is not specified, respectively.  The default value is
+10.}
 
-\item{surv_lambda_min_ratio}{The ratio of the minimum \code{surv_lambda} to
-the large enough \code{surv_lambda} that produces all-zero estimates on
-log scale.  The default value is \code{1e-1}.}
+\item{surv_lambda_min_ratio, cure_lambda_min_ratio}{The ratio of the minimum
+\code{surv_lambda} (or \code{cure_lambda}) to the large enough
+\code{surv_lambda} (or code{cure_lambda}) that produces all-zero
+estimates on log scale.  The default value is \code{1e-1}.}
 
-\item{surv_l1_penalty_factor}{A numeric vector that consists of positive
-numbers for penalty factors (or weights) on L1-norm for the coefficient
-estimate vector in the survival model part.  The penalty is applied to
-the coefficient estimate divided by the specified weights.  The
-specified weights are re-scaled internally so that their summation
-equals the length of coefficients.  If it is left unspecified, the
-weights are all set to be one.}
+\item{surv_l1_penalty_factor, cure_l1_penalty_factor}{A numeric vector that
+consists of nonnegative penalty factors (or weights) on L1-norm for the
+coefficient estimate vector in the survival model part or the incidence
+model part.  The penalty is applied to the coefficient estimate divided
+by the specified weights.  The specified weights are re-scaled
+internally so that their summation equals the length of coefficients.
+If \code{NULL} is specified, the weights are all set to be one.}
 
-\item{cure_lambda}{A numeric vector consists of non-negative values
-representing the tuning parameter sequence for the cure model part.}
+\item{cv_nfolds}{An non-negative integer specifying number of folds in
+cross-validation (CV).  The default value is \code{0} and the CV
+procedure is not enabled.}
 
-\item{cure_alpha}{A number between 0 and 1 for tuning the elastic net
-penalty for the cure model part.  If it is one, the elastic penalty will
-reduce to the well-known lasso penalty.  If it is zero, the ridge
-penalty will be used.}
-
-\item{cure_nlambda}{A positive number specifying the number of
-\code{cure_lambda} if \code{cure_lambda} is not specified.  The default
-value is 10.}
-
-\item{cure_lambda_min_ratio}{The ratio of the minimum \code{cure_lambda} to
-the large enough \code{cure_lambda} that produces all-zero estimates on
-log scale.  The default value is \code{1e-1}.}
-
-\item{cure_l1_penalty_factor}{A numeric vector that consists of positive
-numbers for penalty factors (or weights) on L1-norm for the coefficient
-estimate vector in the cure model part.  The penalty is applied to the
-coefficient estimate divided by the specified weights.  The specified
-weights are re-scaled internally so that their summation equals the
-length of coefficients.  If it is left unspecified, the weights are all
-set to be one.}
-
-\item{surv_start}{An optional numeric vector representing the starting
-values for the Cox model component.  If not specified, the starting
-values will be obtained from fitting a regular Cox model to events only.}
-
-\item{cure_start}{An optional numeric vector representing the starting
-values for the logistic model component.  If not specified, the starting
-values will be obtained from fitting a regular logistic model to the
+\item{surv_start}{An optional numeric vector representing the
+starting values for the survival model component or the incidence model
+component.  If \code{surv_start = NULL} is specified, the starting
+values will be obtained from fitting a regular Cox to events only.
+Similarly, if \code{cure_start = NULL} is specified, the starting values
+will be obtained from fitting a regular logistic model to the
 non-missing event indicators.}
 
-\item{surv_standardize}{A logical value specifying whether to standardize
-the covariates for the survival model part.  If \code{FALSE}, the
-covariates will be standardized internally to have mean zero and
-standard deviation one.}
+\item{cure_start}{An optional numeric vector representing the
+starting values for the survival model component or the incidence model
+component.  If \code{surv_start = NULL} is specified, the starting
+values will be obtained from fitting a regular Cox to events only.
+Similarly, if \code{cure_start = NULL} is specified, the starting values
+will be obtained from fitting a regular logistic model to the
+non-missing event indicators.}
 
-\item{cure_standardize}{A logical value specifying whether to standardize
-the covariates for the cure rate model part.  If \code{TRUE} (by
-default), the covariates will be standardized internally to have mean
-zero and standard deviation one.}
+\item{surv_offset}{An optional numeric vector representing the
+offset term in the survival model compoent or the incidence model
+component.  The function will internally try to find values of the
+specified variable in the \code{data} first.  Alternatively, one or more
+\code{offset} terms can be specified in the formula (by
+\code{stats::offset()}).  If more than one offset terms are specified,
+their sum will be used.}
+
+\item{cure_offset}{An optional numeric vector representing the
+offset term in the survival model compoent or the incidence model
+component.  The function will internally try to find values of the
+specified variable in the \code{data} first.  Alternatively, one or more
+\code{offset} terms can be specified in the formula (by
+\code{stats::offset()}).  If more than one offset terms are specified,
+their sum will be used.}
+
+\item{surv_standardize, cure_standardize}{A logical value specifying whether
+to standardize the covariates for the survival model part or the
+incidence model part.  If \code{FALSE}, the covariates will be
+standardized internally to have mean zero and standard deviation one.}
 
 \item{em_max_iter}{A positive integer specifying the maximum iteration
 number of the EM algorithm.  The default value is \code{200}.}
@@ -143,29 +191,28 @@ relative change between estimates from two consecutive iterations, which
 is measured by ratio of the L1-norm of their difference to the sum of
 their L1-norm.  The default value is \code{1e-5}.}
 
-\item{surv_max_iter}{A positive integer specifying the maximum iteration
-number of the M-step routine related to the survival model component.
-The default value is \code{10} to encourage faster convergence.}
+\item{surv_max_iter, cure_max_iter}{A positive integer specifying the maximum
+iteration number of the M-step routine related to the survival model
+component or the incidence model component.  The default value is
+\code{10} to encourage faster convergence.}
 
-\item{surv_rel_tol}{A positive number specifying the tolerance that
-determines the convergence of the M-step related to the survival model
-component in terms of the convergence of the covariate coefficient
-estimates.  The tolerance is compared with the relative change between
-estimates from two consecutive iterations, which is measured by ratio of
-the L1-norm of their difference to the sum of their L1-norm.  The
-default value is \code{1e-5}.}
+\item{surv_rel_tol}{A positive number specifying the tolerance
+that determines the convergence of the M-step related to the survival
+model component or the incidence model component in terms of the
+convergence of the covariate coefficient estimates.  The tolerance is
+compared with the relative change between estimates from two consecutive
+iterations, which is measured by ratio of the L1-norm of their
+difference to the sum of their L1-norm.  The default value is
+\code{1e-5}.}
 
-\item{cure_max_iter}{A positive integer specifying the maximum iteration
-number of the M-step routine related to the cure rate model component.
-The default value is \code{10} to encourage faster convergence.}
-
-\item{cure_rel_tol}{A positive number specifying the tolerance that
-determines the convergence of the M-step related to the cure rate model
-component in terms of the convergence of the covariate coefficient
-estimates.  The tolerance is compared with the relative change between
-estimates from two consecutive iterations, which is measured by ratio of
-the L1-norm of their difference to the sum of their L1-norm.  The
-default value is \code{1e-5}.}
+\item{cure_rel_tol}{A positive number specifying the tolerance
+that determines the convergence of the M-step related to the survival
+model component or the incidence model component in terms of the
+convergence of the covariate coefficient estimates.  The tolerance is
+compared with the relative change between estimates from two consecutive
+iterations, which is measured by ratio of the L1-norm of their
+difference to the sum of their L1-norm.  The default value is
+\code{1e-5}.}
 
 \item{tail_completion}{A character string specifying the tail completion
 method for conditional survival function.  The available methods are
@@ -217,7 +264,7 @@ events.
 For right-censored data, fit a regularized Cox cure rate model through
 elastic-net penalty following Masud et al. (2018), and Zou and Hastie
 (2005).  For right-censored data with uncertain event status,
-fit the regularized Cox cure model proposed by Wang et al. (2019+).  Without
+fit the regularized Cox cure model proposed by Wang et al. (2020).  Without
 regularization, the model reduces to the regular Cox cure rate model (Kuk
 and Chen, 1992; Sy and Taylor, 2000)
 }
@@ -318,9 +365,9 @@ cure models. \emph{Computational Statistics & Data Analysis}, 42(1-2),
 Sy, J. P., & Taylor, J. M. (2000). Estimation in a Cox proportional hazards
 cure model. \emph{Biometrics}, 56(1), 227--236.
 
-Wang, W., Chen, K., Luo, C., & Yan, J. (2019+). Cox Cure Model with
-Uncertain Event Status with application to a Suicide Risk
-Study. \emph{Working in Progress}.
+Wang, W., Luo, C., Aseltine, R. H., Wang, F., Yan, J., & Chen, K. (2020).
+Suicide Risk Modeling with Uncertain Diagnostic Records. \emph{arXiv
+preprint arXiv:2009.02597}.
 
 Zou, H., & Hastie, T. (2005). Regularization and variable selection via the
 elastic net. \emph{Journal of the Royal Statistical Society}: Series B

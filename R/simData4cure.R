@@ -1,6 +1,6 @@
 ##
 ## intsurv: Integrative Survival Models
-## Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+## Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 ##
 ## This file is part of the R package intsurv.
 ##
@@ -17,17 +17,6 @@
 
 
 ##' Simulate Data from Cox Cure Model with Uncertain Event Status
-##'
-##' @usage
-##' simData4cure(nSubject = 1e3,
-##'              shape = 2, scale = 0.1,
-##'              lambda_censor = 1, max_censor = Inf,
-##'              p1 = 0.9, p2 = 0.9, p3 = 0.9,
-##'              survMat, cureMat = survMat,
-##'              b0 = stats::binomial()$linkfun(0.7),
-##'              survCoef = rep(1, ncol(survMat)),
-##'              cureCoef = rep(1, ncol(cureMat)),
-##'              ...)
 ##'
 ##' @param nSubject A positive integer specifying number of subjects.
 ##' @param shape A positive number specifying the shape parameter of the
@@ -79,9 +68,9 @@
 ##'
 ##' @references
 ##'
-##' Wang, W., Chen, K., Luo, C., & Yan, J. (2019+). Cox Cure Model with
-##' Uncertain Event Status with application to a Suicide Risk
-##' Study. \emph{Working in Progress}.
+##' Wang, W., Luo, C., Aseltine, R. H., Wang, F., Yan, J., & Chen, K. (2020).
+##' Suicide Risk Modeling with Uncertain Diagnostic Records. \emph{arXiv
+##' preprint arXiv:2009.02597}.
 ##'
 ##' @examples
 ##' ## see examples of function cox_cure

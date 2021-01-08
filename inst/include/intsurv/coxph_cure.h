@@ -1,6 +1,6 @@
 //
 // intsurv: Integrative Survival Models
-// Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+// Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 //
 // This file is part of the R package intsurv.
 //
@@ -32,9 +32,9 @@ namespace Intsurv {
     private:
         CoxphReg cox_obj;
         LogisticReg cure_obj;
-        unsigned int cox_p;
-        unsigned int cure_p;
-        unsigned int cure_p0;
+        unsigned int cox_p;     // coef df of cox part
+        unsigned int cure_p;    // coef df of cure part wi intercept
+        unsigned int cure_p0;   // coef df of cure part wo intercept
         arma::uvec case1_ind;
         arma::uvec case2_ind;
         unsigned int max_event_time_ind; // index of the maximum event time
@@ -49,6 +49,7 @@ namespace Intsurv {
         unsigned int num_iter;    // number of iterations
         double bic1;              // BIC: log(num_obs) * coef_df + 2 * negLogL
         double bic2;              // BIC: log(num_event) * coef_df + 2 * negLogL
+        double aic;               // AIC: 2 * coef_df + 2 * negLogL
         double c_index;           // weighted C-index
 
         // for each subject and in the original order of X
@@ -58,6 +59,10 @@ namespace Intsurv {
         // values in the last E-step
         arma::vec estep_cured;
         arma::vec estep_susceptible;
+
+        // tail completion
+        // unsigned int tail_completion = 1;
+        // double tail_tau = - 1.0;
 
         // hazard and survival function estimates at unique time
         arma::vec unique_time;
@@ -89,10 +94,13 @@ namespace Intsurv {
                   const arma::mat& cure_x,
                   const bool& cure_intercept = true,
                   const bool& cox_standardize = true,
-                  const bool& cure_standardize = true)
+                  const bool& cure_standardize = true,
+                  const arma::vec& cox_offset = 0,
+                  const arma::vec& cure_offset = 0)
         {
             // create the CoxphReg object
             this->cox_obj = CoxphReg(time, event, cox_x, cox_standardize);
+            this->cox_obj.set_offset(cox_offset, false);
             // pre-process x and y
             this->cox_p = cox_x.n_cols;
             this->cure_p0 = cure_x.n_cols;
@@ -102,6 +110,7 @@ namespace Intsurv {
             arma::uvec cox_sort_ind { cox_obj.get_sort_index() };
             arma::mat cure_xx { cure_x.rows(cox_sort_ind) };
             arma::vec s_event { event.elem(cox_sort_ind) };
+            arma::vec s_cure_offset { cure_offset.elem(cox_sort_ind) };
             this->case1_ind = arma::find(s_event > 0);
             this->case2_ind = arma::find(s_event < 1);
             this->nEvent = this->case1_ind.n_elem;
@@ -109,14 +118,15 @@ namespace Intsurv {
             // create the LogisticReg object
             this->cure_obj = LogisticReg(cure_xx, s_event, cure_intercept,
                                          cure_standardize);
+            this->cure_obj.set_offset(s_cure_offset);
         }
 
         // function members
         // helper functions
-        inline unsigned int get_cox_p() {
+        inline unsigned int get_cox_p() const {
             return this->cox_p;
         }
-        inline unsigned int get_cure_p() {
+        inline unsigned int get_cure_p() const {
             return this->cure_p;
         }
 
@@ -162,6 +172,23 @@ namespace Intsurv {
             const unsigned int& verbose
             );
 
+        // function to compute the observe data log-likelihood function
+        // for given fitted model and estimates
+        inline double obs_log_likelihood() const;
+
+        // for given fitted model and a new set of data
+        // all the inputs will be sorted inside of the function
+        // so their copies are asked here
+        inline double obs_log_likelihood(
+            arma::vec new_time,
+            arma::vec new_event,
+            arma::mat new_cox_x,
+            arma::mat new_cure_x,
+            arma::vec new_cox_offset,
+            arma::vec new_cure_offset,
+            const double pmin
+            ) const;
+
         // compute BIC
         inline void compute_bic1() {
             this->bic1 = std::log(nObs) * coef_df + 2 * negLogL;
@@ -169,6 +196,9 @@ namespace Intsurv {
         inline void compute_bic2() {
             this->bic2 = std::log(case1_ind.n_elem) *
                 coef_df + 2 * negLogL;
+        }
+        inline void compute_aic() {
+            this->aic = 2 * (coef_df + negLogL);
         }
 
     };                          // end of class definition
@@ -231,6 +261,7 @@ namespace Intsurv {
         double obs_ell {0}, obs_ell_old { - arma::datum::inf };
         double tol1 { arma::datum::inf }, tol2 { tol1 };
         arma::vec s0_wi_tail, s_wi_tail;
+        // arma::vec offset0 { cox_obj.get_offset() };
 
         // prepare for tail completion
         double max_event_time { time(this->max_event_time_ind) };
@@ -408,7 +439,7 @@ namespace Intsurv {
                 Rcpp::Rcout << "\n" << std::string(40, '-')
                             << "\nRunning M-step for the survival layer:";
             }
-            cox_obj.set_offset(arma::log(estep_v));
+            cox_obj.set_offset_haz(arma::log(estep_v));
             cox_obj.fit(cox_beta, cox_mstep_max_iter, cox_mstep_rel_tol,
                         early_stop == 1, verbose > 2);
             if (verbose > 1) {
@@ -446,7 +477,8 @@ namespace Intsurv {
         } // end of the EM algorithm
 
         // reset cox_obj and cure_obj in case of further usage
-        cox_obj.reset_offset();
+        cox_obj.reset_offset_haz();
+        // cox_obj.set_offset(offset0);
         cure_obj.update_y(cox_obj.get_event());
 
         // prepare outputs
@@ -461,12 +493,19 @@ namespace Intsurv {
         this->num_iter = i;
         this->compute_bic1();
         this->compute_bic2();
+        this->compute_aic();
+
+        // // record tail completion
+        // this->tail_completion = tail_completion;
+        // this->tail_tau = tail_tau;
+
         // prepare scores and prob in their original order
         arma::uvec rev_ord { cox_obj.get_rev_sort_index() };
         this->cox_xBeta = cox_obj.xBeta.elem(rev_ord);
         this->cure_xBeta = cure_obj.xBeta.elem(rev_ord);
-        // set suspectible prob to be 1 for events
-        cure_obj.prob_vec.elem(case1_ind).ones();
+        // set prob to be 1 for events for computing C-index
+        arma::vec p_vec_event { cure_obj.prob_vec };
+        p_vec_event.elem(case1_ind).ones();
         this->susceptible_prob = cure_obj.prob_vec.elem(rev_ord);
         // compute posterior probabilities from E-step
         for (size_t j: case2_ind) {
@@ -477,7 +516,7 @@ namespace Intsurv {
         this->estep_cured = 1 - this->estep_susceptible;
         // compute weighted c-index
         this->c_index = Intsurv::Concordance(
-            time, event, cox_obj.xBeta, cure_obj.prob_vec
+            time, event, cox_obj.xBeta, p_vec_event
             ).index;
     }
 
@@ -530,14 +569,21 @@ namespace Intsurv {
 
         // compute the large enough lambdas that result in all-zero estimates
         arma::vec cox_grad_zero { arma::abs(cox_obj.gradient(cox_beta)) };
-        this->cox_l1_lambda_max =
-            arma::max(cox_grad_zero / cox_l1_penalty) / this->nObs;
         arma::vec cure_grad_zero {
             arma::abs(cure_obj.gradient(cure_beta, pmin))
         };
-        this->cure_l1_lambda_max =
-            arma::max(cure_grad_zero.tail(cure_l1_penalty.n_elem) /
-                      cure_l1_penalty) / this->nObs;
+        cure_grad_zero = cure_grad_zero.tail(cure_l1_penalty.n_elem);
+        // excluding variable with zero penalty factor
+        arma::uvec cox_active_l1_penalty { arma::find(cox_l1_penalty > 0) };
+        arma::uvec cure_active_l1_penalty { arma::find(cure_l1_penalty > 0) };
+        this->cox_l1_lambda_max = arma::max(
+            cox_grad_zero.elem(cox_active_l1_penalty) /
+            cox_l1_penalty.elem(cox_active_l1_penalty)
+            ) / this->nObs;
+        this->cure_l1_lambda_max = arma::max(
+            cure_grad_zero.elem(cure_active_l1_penalty) /
+            cure_l1_penalty.elem(cure_active_l1_penalty)
+            ) / this->nObs;
 
         // early stop: return lambda_max if em_max_iter = 0
         if (em_max_iter == 0) {
@@ -569,6 +615,7 @@ namespace Intsurv {
         double tol1 { arma::datum::inf }, tol2 { tol1 };
         arma::vec s0_wi_tail, s_wi_tail;
         bool verbose_mstep { verbose > 2 };
+        // arma::vec offset0 { cox_obj.get_offset() };
 
         // prepare for tail completion
         double max_event_time { time(this->max_event_time_ind) };
@@ -644,8 +691,8 @@ namespace Intsurv {
             // compuete the regularized objective function
             double reg_cox {
                 cox_l1_lambda * l1_norm(cox_obj.coef % cox_l1_penalty) +
-                cox_l2_lambda * sum_of_square(cox_obj.coef)
-            };
+                    cox_l2_lambda * sum_of_square(cox_obj.coef)
+                    };
             double reg_cure {
                 cure_l1_lambda *
                 l1_norm(cure_obj.coef.tail(cure_p0) % cure_l1_penalty) +
@@ -659,6 +706,7 @@ namespace Intsurv {
             this->coef_df = cox_obj.coef_df + cure_obj.coef_df;
             this->compute_bic1();
             this->compute_bic2();
+            this->compute_aic();
 
             // verbose tracing for objective function
             if (verbose) {
@@ -771,11 +819,11 @@ namespace Intsurv {
                 double numer_j { p_vec(j) *  cox_obj.S_time(j)};
                 estep_v(j) = numer_j / (1 - p_vec(j) + numer_j);
                 // special care prevents coef diverging
-                if (estep_v(j) < pmin) {
-                    estep_v(j) = pmin;
-                } else if (estep_v(j) > 1 - pmin) {
-                    estep_v(j) = 1 - pmin;
-                }
+                // if (estep_v(j) < pmin) {
+                //     estep_v(j) = 0;
+                // } else if (estep_v(j) > 1 - pmin) {
+                //     estep_v(j) = 1;
+                // }
             }
 
             // allow users to stop the main loop
@@ -786,7 +834,7 @@ namespace Intsurv {
                 Rcpp::Rcout << "\n" << std::string(40, '-')
                             << "\nRunning the M-step for the survival layer:";
             }
-            cox_obj.set_offset(arma::log(estep_v));
+            cox_obj.set_offset_haz(arma::log(estep_v));
             cox_obj.regularized_fit(
                 cox_l1_lambda, cox_l2_lambda, cox_l1_penalty_factor,
                 cox_beta, cox_mstep_max_iter, cox_mstep_rel_tol,
@@ -825,7 +873,8 @@ namespace Intsurv {
         } // end of the EM algorithm
 
         // reset cox_obj and cure_obj in case of further usage
-        cox_obj.reset_offset();
+        cox_obj.reset_offset_haz();
+        // cox_obj.set_offset(offset0);
         cure_obj.update_y(cox_obj.get_event());
 
         // prepare outputs
@@ -850,13 +899,22 @@ namespace Intsurv {
         // compute BIC
         this->compute_bic1();
         this->compute_bic2();
+        this->compute_aic();
+
+        // record tail completion
+        // this->tail_completion = tail_completion;
+        // this->tail_tau = tail_tau;
+
         // prepare scores and prob in their original order
         arma::uvec rev_ord { cox_obj.get_rev_sort_index() };
         this->cox_xBeta = cox_obj.xBeta.elem(rev_ord);
         this->cure_xBeta = cure_obj.xBeta.elem(rev_ord);
-        // set suspectible prob to be 1 for events
-        cure_obj.prob_vec.elem(case1_ind).ones();
+
+        // set prob to be 1 for events for computing C-index
+        arma::vec p_vec_event { cure_obj.prob_vec };
+        p_vec_event.elem(case1_ind).ones();
         this->susceptible_prob = cure_obj.prob_vec.elem(rev_ord);
+
         // compute posterior probabilities from E-step
         for (size_t j: case2_ind) {
             double numer_j { p_vec(j) * cox_obj.S_time(j) };
@@ -866,8 +924,147 @@ namespace Intsurv {
         this->estep_cured = 1 - this->estep_susceptible;
         // compute weight C-index
         this->c_index = Intsurv::Concordance(
-            time, event, cox_obj.xBeta, cure_obj.prob_vec
+            time, event, cox_obj.xBeta, p_vec_event
             ).index;
+    }
+
+    // function to compute the observe data log-likelihood function
+    // for given fitted model and estimates
+    inline double CoxphCure::obs_log_likelihood() const
+    {
+        double obs_ell { 0 };
+        arma::vec sus_prob { cure_obj.prob_vec };
+        // for case 1
+        for (size_t j: case1_ind) {
+            obs_ell += std::log(sus_prob(j)) +
+                std::log(cox_obj.h_time(j)) -
+                cox_obj.H_time(j);
+        }
+        // for case 2
+        for (size_t j: case2_ind) {
+            obs_ell += std::log(
+                sus_prob(j) * cox_obj.S_time(j) +
+                (1 - sus_prob(j))
+                );
+        }
+        return obs_ell;
+    }
+
+    // for given fitted model and a new set of data
+    inline double CoxphCure::obs_log_likelihood(
+        // all the inputs will be sorted inside of the function
+        // so their copies are asked here
+        arma::vec new_time,
+        arma::vec new_event,
+        arma::mat new_cox_x,
+        arma::mat new_cure_x,
+        arma::vec new_cox_offset = 0,
+        arma::vec new_cure_offset = 0,
+        const double pmin = 1e-5
+        ) const
+    {
+        // check if the number of covariates matchs the fitted model
+        if (new_cox_x.n_cols != this->cox_p) {
+            throw std::range_error(
+                "The number of columns ('new_cox_x') must match the model."
+                );
+        }
+        if (new_cure_x.n_cols != this->cure_p0) {
+            throw std::range_error(
+                "The number of columns ('new_cure_x') must match the model."
+                );
+        }
+        // number of observations
+        unsigned int new_n_obs { new_cox_x.n_rows };
+        if (new_cure_x.n_rows != new_n_obs) {
+            throw std::range_error(
+                "The number of rows of the new data must be the same."
+                );
+        }
+
+        double obs_ell { 0 };
+        // sort based on time and event
+        // time: ascending order
+        // event: events first, then censoring at the same time point
+        arma::uvec des_event_ind { arma::sort_index(new_event, "descend") };
+        arma::uvec asc_time_ind {
+            arma::stable_sort_index(new_time.elem(des_event_ind), "ascend")
+        };
+        arma::uvec ord { des_event_ind.elem(asc_time_ind) };
+        // do actual sorting
+        new_time = new_time.elem(ord);
+        new_event = new_event.elem(ord);
+        new_cox_x = new_cox_x.rows(ord);
+        new_cure_x = new_cure_x.rows(ord);
+        // process offset terms
+        if (new_cox_offset.n_elem != new_cox_x.n_rows) {
+            new_cox_offset = arma::zeros(new_cox_x.n_rows);
+        } else {
+            new_cox_offset = new_cox_offset(ord);
+        }
+        if (new_cure_offset.n_elem != new_cure_x.n_rows) {
+            new_cure_offset = arma::zeros(new_cure_x.n_rows);
+        } else {
+            new_cure_offset = new_cure_offset(ord);
+        }
+
+        // add intercept if needed
+        if (this->cure_p > this->cure_p0) {
+            new_cure_x = arma::join_horiz(
+                arma::ones(new_cure_x.n_rows), new_cure_x
+                );
+        }
+        arma::uvec new_case1_ind { arma::find(new_event > 0) };
+        arma::uvec new_case2_ind { arma::find(new_event < 1) };
+        // construct the baseline survival curve
+        // tail completion has already been applied to this->S0_est
+        arma::vec S0_vec {
+            arma::join_cols(arma::ones<arma::vec>(1), this->S0_est)
+        };
+        // baseline estimates
+        arma::vec S_vec {
+            step_fun(new_time, this->unique_time, S0_vec)
+        };
+        arma::vec H_vec { - arma::log(S_vec) };
+        // only consider positive values
+        arma::uvec which_h { arma::find(this->h0_est > 0) };
+        arma::vec h_vec {
+            step_fun2(new_time,
+                      this->unique_time.elem(which_h),
+                      this->h0_est.elem(which_h))
+        };
+        // apply x * beta
+        // compute parts for the new data
+        arma::vec new_cox_xbeta {
+            mat2vec(new_cox_x * this->cox_coef) + new_cox_offset
+        };
+        arma::vec exp_cox_xbeta { arma::exp(new_cox_xbeta) };
+        h_vec %= exp_cox_xbeta;
+        H_vec %= exp_cox_xbeta;
+        S_vec = arma::exp(- H_vec);
+        arma::vec new_cure_xgamma {
+            mat2vec(new_cure_x * this->cure_coef) + new_cure_offset
+        };
+        arma::vec p_vec { 1 / (1 + arma::exp(- new_cure_xgamma)) };
+        for (size_t i {0}; i < p_vec.n_elem; ++i) {
+            if (p_vec(i) < pmin) {
+                p_vec(i) = pmin;
+            } else if (p_vec(i) > 1 - pmin) {
+                p_vec(i) = 1 - pmin;
+            }
+        }
+        // for case 1
+        for (size_t j: new_case1_ind) {
+            obs_ell += std::log(p_vec(j)) +
+                std::log(h_vec(j)) - H_vec(j);
+        }
+        // for case 2
+        for (size_t j: new_case2_ind) {
+            obs_ell += std::log(
+                p_vec(j) * S_vec(j) + (1 - p_vec(j))
+                );
+        }
+        return obs_ell;
     }
 
 }

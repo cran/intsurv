@@ -1,6 +1,6 @@
 //
 // intsurv: Integrative Survival Models
-// Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+// Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 //
 // This file is part of the R package intsurv.
 //
@@ -48,6 +48,7 @@ namespace Intsurv {
         arma::uvec uni_time_ind;   // the index indicating the first record on
                                    // each time whether event or censoring
         arma::vec offset;          // offset term
+        arma::vec offset_haz;      // offset term for baseline hazard only
         // size of risk-set at each time point
         arma::vec riskset_size_time;
 
@@ -56,6 +57,7 @@ namespace Intsurv {
         arma::vec d_time;          // distinct event times
         arma::mat d_x;             // design matrix aggregated at d_time
         arma::vec d_offset;        // offset terms aggregated at d_time
+        arma::vec d_offset_haz;    // offset_haz terms aggregated at d_time
         arma::vec delta_n;         // event counts at d_time
         arma::vec riskset_size;    // size of risk-set at d_time
 
@@ -176,6 +178,7 @@ namespace Intsurv {
             }
             // initialize offset
             this->set_offset(arma::zeros(1));
+            this->set_offset_haz(arma::zeros(1));
             riskset_size = arma::ones(time.n_elem);
             riskset_size = cum_sum(riskset_size, true).elem(uni_event_ind);
         }
@@ -239,6 +242,38 @@ namespace Intsurv {
         }
         inline void reset_offset() {
             set_offset(arma::zeros(time.n_elem));
+        }
+        inline arma::vec get_offset() {
+            return this->offset;
+        }
+        // set offset for denominator in baseline hazard function
+        // for cure rate model
+        inline void set_offset_haz(const arma::vec& offset_,
+                                   const bool& is_sorted = true)
+        {
+            if (offset_.n_elem == x.n_rows) {
+                offset_haz = offset_;
+                if (! is_sorted) {
+                    // update offset for appropriate input
+                    offset_haz = offset_haz.elem(ord);
+                }
+                // update d_offset as well
+                d_offset_haz = offset_haz.elem(event_ind) %
+                    event.elem(event_ind);
+                if (hasTies) {
+                    d_offset_haz = aggregate_sum(d_offset_haz, this->d_time0);
+                }
+            } else {
+                offset_haz = arma::zeros(time.n_elem);
+                if (hasTies) {
+                    d_offset_haz = arma::zeros(d_time.n_elem);
+                } else {
+                    d_offset_haz = arma::zeros(event_ind.n_elem);
+                }
+            }
+        }
+        inline void reset_offset_haz() {
+            set_offset_haz(arma::zeros(time.n_elem));
         }
 
         // function that computes baseline estimates
@@ -392,14 +427,13 @@ namespace Intsurv {
                 this->xBeta = x * this->coef;
             }
         }
-        arma::vec exp_x_beta { arma::exp(this->xBeta) };
-
+        arma::vec exp_risk_score { arma::exp(this->xBeta + this->offset) };
         // 1. hazard rate function
         arma::vec h0_numer { aggregate_sum(event, time, false) };
-        arma::vec h0_denom { exp_x_beta % arma::exp(this->offset) };
+        arma::vec h0_denom { exp_risk_score % arma::exp(this->offset_haz) };
         h0_denom = aggregate_sum(h0_denom, time, false, true, true);
         this->h0_time = h0_numer / h0_denom;
-        this->h_time = this->h0_time % exp_x_beta;
+        this->h_time = this->h0_time % exp_risk_score;
 
         // 2. baseline cumulative hazard function
         this->H0_time = arma::zeros(h0_time.n_elem);
@@ -407,7 +441,7 @@ namespace Intsurv {
             this->H0_time(i) = h0_time(i);
         }
         this->H0_time = cum_sum(this->H0_time);
-        this->H_time = this->H0_time % exp_x_beta;
+        this->H_time = this->H0_time % exp_risk_score;
 
         // 3. baseline survival function
         this->S0_time = arma::exp(- this->H0_time);
@@ -458,8 +492,8 @@ namespace Intsurv {
     // the negative log-likelihood function based on the broslow's formula
     inline double CoxphReg::objective(const arma::vec& beta) const
     {
-        const arma::vec dx_beta {d_x * beta + d_offset};
-        const arma::vec exp_x_beta {arma::exp(x * beta + offset)};
+        const arma::vec dx_beta {d_x * beta + d_offset + d_offset_haz};
+        const arma::vec exp_x_beta {arma::exp(x * beta + offset + offset_haz)};
         const arma::vec h0_denom {cum_sum(exp_x_beta, true)};
         arma::vec log_h0_denom_event {arma::log(h0_denom.elem(uni_event_ind))};
         return - arma::sum(dx_beta - delta_n % log_h0_denom_event);
@@ -472,7 +506,7 @@ namespace Intsurv {
     // the gradient of negative loglikelihood function
     inline arma::vec CoxphReg::gradient(const arma::vec& beta) const
     {
-        const arma::vec exp_x_beta {arma::exp(x * beta + offset)};
+        const arma::vec exp_x_beta {arma::exp(x * beta + offset + offset_haz)};
         const arma::vec h0_denom {cum_sum(exp_x_beta, true)};
         arma::mat numer_mat {arma::zeros(x.n_rows, x.n_cols)};
         for (size_t i {0}; i < x.n_rows; ++i) {
@@ -490,7 +524,9 @@ namespace Intsurv {
     inline double CoxphReg::gradient(const arma::vec& beta,
                                      const unsigned int& k) const
     {
-        const arma::vec exp_x_beta { arma::exp(x * beta + offset) };
+        const arma::vec exp_x_beta {
+            arma::exp(x * beta + offset + offset_haz)
+        };
         arma::vec h0_denom { cum_sum(exp_x_beta, true) };
         arma::vec numer { cum_sum(mat2vec(x.col(k) % exp_x_beta), true) };
         h0_denom = h0_denom.elem(uni_event_ind);
@@ -502,8 +538,8 @@ namespace Intsurv {
     inline double CoxphReg::objective(const arma::vec& beta,
                                       arma::vec& grad) const
     {
-        const arma::vec dx_beta {d_x * beta + d_offset};
-        const arma::vec exp_x_beta {arma::exp(x * beta + offset)};
+        const arma::vec dx_beta {d_x * beta + d_offset + d_offset_haz};
+        const arma::vec exp_x_beta {arma::exp(x * beta + offset + offset_haz)};
         const arma::vec h0_denom {cum_sum(exp_x_beta, true)};
         arma::mat numer_mat {arma::zeros(x.n_rows, x.n_cols)};
         for (size_t i {0}; i < x.n_rows; ++i) {
@@ -814,10 +850,14 @@ namespace Intsurv {
 
         // the maximum (large enough) lambda that results in all-zero estimates
         arma::vec beta { arma::zeros(x.n_cols) };
-        arma::vec grad_beta { beta }, strong_rhs { beta };
-        this->l1_lambda_max =
-            arma::max(arma::abs(this->gradient(beta)) /
-                      l1_penalty) / this->x.n_rows;
+        arma::vec grad_beta { beta }, strong_rhs { beta }, grad_zero { beta };
+        // excluding variable with zero penalty factor
+        arma::uvec active_l1_penalty { arma::find(l1_penalty > 0) };
+        grad_zero = arma::abs(this->gradient(beta));
+        this->l1_lambda_max = arma::max(
+            grad_zero.elem(active_l1_penalty) /
+            l1_penalty.elem(active_l1_penalty)
+            ) / this->x.n_rows;
 
         // early exit for large lambda greater than lambda_max
         this->coef0 = beta;
@@ -940,7 +980,7 @@ namespace Intsurv {
         arma::vec grad_beta { beta }, strong_rhs { beta };
         this->l1_lambda_max =
             arma::max(arma::abs(this->gradient(beta)) / l1_penalty) /
-            this->x.n_rows / std::max(alpha, 1e-10);
+            this->x.n_rows / std::max(alpha, 1e-3);
 
         // take unique lambda and sort descendingly
         lambda = arma::reverse(arma::unique(lambda));

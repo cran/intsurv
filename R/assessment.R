@@ -1,6 +1,6 @@
 ##
 ## intsurv: Integrative Survival Models
-## Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+## Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 ##
 ## This file is part of the R package intsurv.
 ##
@@ -37,9 +37,6 @@ NULL
 ##' proportion of the concordant pairs among the comparable pairs.  For
 ##' comparable pair satisfying \eqn{t_i<t_j,\delta_i=1}, we count 0.5 in the
 ##' numerator of the concordance index for tied risk scores (\eqn{r_i=r_j}).
-##'
-##' @usage
-##' cIndex(time, event = NULL, risk_score, weight = NULL)
 ##'
 ##' @param time A numeric vector for observed times
 ##' @param event A numeric vector for event indicators.  If it is \code{NULL}
@@ -89,6 +86,12 @@ cIndex <- function(time, event = NULL, risk_score, weight = NULL)
     }
     rcpp_cIndex(time, event, risk_score, weight)
 }
+
+
+## FIXME: add AIC methods
+## Akaike Information Criterion (AIC)
+
+
 
 
 ##' Bayesian Information Criterion (BIC)

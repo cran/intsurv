@@ -5,25 +5,61 @@
 \alias{cox_cure.fit}
 \title{Cox Cure Rate Model}
 \usage{
-cox_cure(surv_formula, cure_formula,
-         time, event, data, subset, contrasts = NULL,
-         bootstrap = 0, firth = FALSE, surv_start, cure_start,
-         em_max_iter = 200, em_rel_tol = 1e-5,
-         surv_max_iter = 30, surv_rel_tol = 1e-5,
-         cure_max_iter = 30, cure_rel_tol = 1e-5,
-         tail_completion = c("zero", "exp", "zero-tau"),
-         tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
-         verbose = FALSE, ...)
+cox_cure(
+  surv_formula,
+  cure_formula,
+  time,
+  event,
+  data,
+  subset,
+  contrasts = NULL,
+  bootstrap = 0,
+  firth = FALSE,
+  surv_start = NULL,
+  cure_start = NULL,
+  surv_offset = NULL,
+  cure_offset = NULL,
+  em_max_iter = 200,
+  em_rel_tol = 1e-05,
+  surv_max_iter = 30,
+  surv_rel_tol = 1e-05,
+  cure_max_iter = 30,
+  cure_rel_tol = 1e-05,
+  tail_completion = c("zero", "exp", "zero-tau"),
+  tail_tau = NULL,
+  pmin = 1e-05,
+  early_stop = TRUE,
+  verbose = FALSE,
+  ...
+)
 
-cox_cure.fit(surv_x, cure_x, time, event, cure_intercept = TRUE,
-             bootstrap = 0, firth = FALSE, surv_start, cure_start,
-             surv_standardize = TRUE, cure_standardize = TRUE,
-             em_max_iter = 200, em_rel_tol = 1e-5,
-             surv_max_iter = 30, surv_rel_tol = 1e-5,
-             cure_max_iter = 30, cure_rel_tol = 1e-5,
-             tail_completion = c("zero", "exp", "zero-tau"),
-             tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
-             verbose = FALSE, ...)
+cox_cure.fit(
+  surv_x,
+  cure_x,
+  time,
+  event,
+  cure_intercept = TRUE,
+  bootstrap = 0,
+  firth = FALSE,
+  surv_start = NULL,
+  cure_start = NULL,
+  surv_offset = NULL,
+  cure_offset = NULL,
+  surv_standardize = TRUE,
+  cure_standardize = TRUE,
+  em_max_iter = 200,
+  em_rel_tol = 1e-05,
+  surv_max_iter = 30,
+  surv_rel_tol = 1e-05,
+  cure_max_iter = 30,
+  cure_rel_tol = 1e-05,
+  tail_completion = c("zero", "exp", "zero-tau"),
+  tail_tau = NULL,
+  pmin = 1e-05,
+  early_stop = TRUE,
+  verbose = FALSE,
+  ...
+)
 }
 \arguments{
 \item{surv_formula}{A formula object starting with \code{~} for the model
@@ -32,7 +68,7 @@ included even if an intercept is specified or implied in the model
 formula.  A model formula with an intercept term only is not allowed.}
 
 \item{cure_formula}{A formula object starting with \code{~} for the model
-formula in cure rate model part.  For logistic model, an intercept term
+formula in incidence model part.  For logistic model, an intercept term
 is included by default and can be excluded by adding \code{+ 0} or
 \code{- 1} to the model formula.}
 
@@ -69,14 +105,21 @@ The default value is \code{FALSE} for fitting a regular logistic model.
 Notice that this argument is experimental and only available for regular
 Cox cure rate model currently.}
 
-\item{surv_start}{An optional numeric vector representing the starting
-values for the Cox model component.  If not specified, the starting
-values will be obtained from fitting a regular Cox model to events only.}
-
-\item{cure_start}{An optional numeric vector representing the starting
-values for the logistic model component.  If not specified, the starting
-values will be obtained from fitting a regular logistic model to the
+\item{surv_start, cure_start}{An optional numeric vector representing the
+starting values for the survival model component or the incidence model
+component.  If \code{surv_start = NULL} is specified, the starting
+values will be obtained from fitting a regular Cox to events only.
+Similarly, if \code{cure_start = NULL} is specified, the starting values
+will be obtained from fitting a regular logistic model to the
 non-missing event indicators.}
+
+\item{surv_offset, cure_offset}{An optional numeric vector representing the
+offset term in the survival model compoent or the incidence model
+component.  The function will internally try to find values of the
+specified variable in the \code{data} first.  Alternatively, one or more
+\code{offset} terms can be specified in the formula (by
+\code{stats::offset()}).  If more than one offset terms are specified,
+their sum will be used.}
 
 \item{em_max_iter}{A positive integer specifying the maximum iteration
 number of the EM algorithm.  The default value is \code{200}.}
@@ -88,29 +131,19 @@ relative change between estimates from two consecutive iterations, which
 is measured by ratio of the L1-norm of their difference to the sum of
 their L1-norm.  The default value is \code{1e-5}.}
 
-\item{surv_max_iter}{A positive integer specifying the maximum iteration
-number of the M-step routine related to the survival model component.
-The default value is \code{200}.}
+\item{surv_max_iter, cure_max_iter}{A positive integer specifying the maximum
+iteration number of the M-step routine related to the survival model
+component or the incidence model component.  The default value is
+\code{200}.}
 
-\item{surv_rel_tol}{A positive number specifying the tolerance that
-determines the convergence of the M-step related to the survival model
-component in terms of the convergence of the covariate coefficient
-estimates.  The tolerance is compared with the relative change between
-estimates from two consecutive iterations, which is measured by ratio of
-the L1-norm of their difference to the sum of their L1-norm.  The
-default value is \code{1e-5}.}
-
-\item{cure_max_iter}{A positive integer specifying the maximum iteration
-number of the M-step routine related to the cure rate model component.
-The default value is \code{200}.}
-
-\item{cure_rel_tol}{A positive number specifying the tolerance that
-determines the convergence of the M-step related to the cure rate model
-component in terms of the convergence of the covariate coefficient
-estimates.  The tolerance is compared with the relative change between
-estimates from two consecutive iterations, which is measured by ratio of
-the L1-norm of their difference to the sum of their L1-norm.  The
-default value is \code{1e-5}.}
+\item{surv_rel_tol, cure_rel_tol}{A positive number specifying the tolerance
+that determines the convergence of the M-step related to the survival
+model component or the incidence model component in terms of the
+convergence of the covariate coefficient estimates.  The tolerance is
+compared with the relative change between estimates from two consecutive
+iterations, which is measured by ratio of the L1-norm of their
+difference to the sum of their L1-norm.  The default value is
+\code{1e-5}.}
 
 \item{tail_completion}{A character string specifying the tail completion
 method for conditional survival function.  The available methods are
@@ -171,7 +204,7 @@ zero and standard deviation one.}
 For right-censored data, fit a regular Cox cure rate model (Kuk and Chen,
 1992; Sy and Taylor, 2000) via an EM algorithm.  For right-censored data
 with uncertain event status, fit the Cox cure model proposed by Wang et
-al. (2019+).
+al. (2020).
 }
 \examples{
 library(intsurv)
@@ -206,24 +239,23 @@ coef(fit1)
 coef(fit1, "surv")
 coef(fit1, "cure")
 
-## compute weighted concordance index (C-index)
+## weighted concordance index (C-index)
+fit1$model$c_index
+## which also can be computed as follows
 cIndex(time = obs_time, event = event,
        risk_score = fit1$fitted$surv_xBeta,
-       weight = fit1$fitted$susceptible_prob)
-
-## or directly extract C-index from the object
-fit1$model$c_index
+       weight = ifelse(event > 0, 1, fit1$fitted$susceptible_prob))
 
 ## 2. create a toy dataset
 toy_dat <- data.frame(time = obs_time, status = event)
 toy_dat$group <- cut(abs(x_mat[, 1L]), breaks = c(0, 0.5, 1, 3, Inf),
-                     labels = c("A", "B", "C", "D"))
+                     labels = LETTERS[1:4])
 toy_dat <- cbind(toy_dat, as.data.frame(x_mat[, - 1L, drop = FALSE]))
 
 ## model-fitting from given model formula
-fit2 <- cox_cure(~ x2 + x3 + x4 + group, ~ x2 + x3 + group,
-                 time = time, event = status, data = toy_dat,
-                 subset = group != "D", bootstrap = 30)
+fit2 <- cox_cure(~ x3 + x4 + group, ~ group + x3 + offset(x2),
+                 time = time, event = status, surv_offset = x2,
+                 data = toy_dat, subset = group != "D", bootstrap = 30)
 summary(fit2)
 
 ## get BIC's
@@ -267,9 +299,9 @@ cure models. \emph{Computational Statistics & Data Analysis}, 42(1-2),
 Sy, J. P., & Taylor, J. M. (2000). Estimation in a Cox proportional hazards
 cure model. \emph{Biometrics}, 56(1), 227--236.
 
-Wang, W., Chen, K., Luo, C., & Yan, J. (2019+). Cox Cure Model with
-Uncertain Event Status with application to a Suicide Risk
-Study. \emph{Working in Progress}.
+Wang, W., Luo, C., Aseltine, R. H., Wang, F., Yan, J., & Chen, K. (2020).
+Suicide Risk Modeling with Uncertain Diagnostic Records. \emph{arXiv
+preprint arXiv:2009.02597}.
 }
 \seealso{
 \code{\link{cox_cure_net}} for regularized Cox cure rate model with

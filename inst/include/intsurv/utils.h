@@ -1,6 +1,6 @@
 //
 // intsurv: Integrative Survival Models
-// Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+// Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 //
 // This file is part of the R package intsurv.
 //
@@ -114,13 +114,17 @@ namespace Intsurv {
     }
 
     // set intersection for vector a and vector b
+    // a and b must be sorted
     // armadillo vector has just one template type parameter
     template <typename T, template <typename> class ARMA_VEC_TYPE>
     inline ARMA_VEC_TYPE<T> vec_intersection(const ARMA_VEC_TYPE<T>& a,
                                              const ARMA_VEC_TYPE<T>& b)
     {
         std::vector<T> res;
-        std::set_intersection(a.begin(), a.end(), b.begin(), b.end(),
+        ARMA_VEC_TYPE<T> s_a { arma::sort(a) };
+        ARMA_VEC_TYPE<T> s_b { arma::sort(b) };
+        std::set_intersection(s_a.begin(), s_a.end(),
+                              s_b.begin(), s_b.end(),
                               std::back_inserter(res));
         std::reverse(res.begin(), res.end());
         return arma::sort(arma::conv_to<ARMA_VEC_TYPE<T>>::from(res));
@@ -132,9 +136,25 @@ namespace Intsurv {
                                       const ARMA_VEC_TYPE<T>& b)
     {
         std::vector<T> res;
-        std::set_union(a.begin(), a.end(),
-                       b.begin(), b.end(),
+        ARMA_VEC_TYPE<T> s_a { arma::sort(a) };
+        ARMA_VEC_TYPE<T> s_b { arma::sort(b) };
+        std::set_union(s_a.begin(), s_a.end(),
+                       s_b.begin(), s_b.end(),
                        std::inserter(res, res.begin()));
+        return arma::sort(arma::conv_to<ARMA_VEC_TYPE<T>>::from(res));
+    }
+
+    // set difference for vector a and vector b
+    template <typename T, template <typename> class ARMA_VEC_TYPE>
+    inline ARMA_VEC_TYPE<T> vec_diff(const ARMA_VEC_TYPE<T>& a,
+                                     const ARMA_VEC_TYPE<T>& b)
+    {
+        std::vector<T> res;
+        ARMA_VEC_TYPE<T> s_a { arma::sort(a) };
+        ARMA_VEC_TYPE<T> s_b { arma::sort(b) };
+        std::set_difference(s_a.begin(), s_a.end(),
+                            s_b.begin(), s_b.end(),
+                            std::inserter(res, res.begin()));
         return arma::sort(arma::conv_to<ARMA_VEC_TYPE<T>>::from(res));
     }
 
@@ -353,6 +373,24 @@ namespace Intsurv {
         return out;
     }
 
+    // capped exponential
+    inline arma::vec cap_exp(arma::vec x,
+                             const double positive_cap = 20,
+                             const double negative_cap = - 120)
+    {
+        x.elem(arma::find(x > positive_cap)).fill(positive_cap);
+        x.elem(arma::find(x < negative_cap)).fill(negative_cap);
+        return arma::exp(x);
+    }
+    inline double cap_exp(double x,
+                          const double positive_cap = 20,
+                          const double negative_cap = - 120)
+    {
+        return std::exp(
+            std::min(std::max(x, negative_cap), positive_cap)
+            );
+    }
+
     // inline handy functions
     inline arma::vec mat2vec(const arma::mat& x) {
         return arma::conv_to<arma::vec>::from(x);
@@ -524,6 +562,18 @@ namespace Intsurv {
         return res;
     }
 
+    // compute reverse difference for a vector
+    inline arma::vec rev_diff(const arma::vec& x) {
+        if (x.n_elem <= 1) {
+            throw std::range_error("The length of 'x' should be >= 1.");
+        }
+        arma::vec res { arma::vec(x.n_elem - 1) };
+        for (size_t i {0}; i < x.n_elem - 1; ++i) {
+            res(i) = x(i + 1) - x(i);
+        }
+        return res;
+    }
+
     // log of sum of exponentials
     inline double log_sum_exp(const arma::vec& x)
     {
@@ -551,7 +601,7 @@ namespace Intsurv {
         return res;
     }
 
-    // step function
+    // step function, where length(height) = length(knots) + 1
     inline arma::vec step_fun(const arma::vec& x,
                               const arma::vec& knots,
                               const arma::vec& height)
@@ -570,6 +620,32 @@ namespace Intsurv {
                 res(i) = it->second;
             } else {
                 res(i) = height(0);
+            }
+        }
+        return res;
+    }
+
+    // step function, where length(height) = length(knots)
+    // the nearest left neighbor or the nearest right neighbor
+    // is used if the left neighbor doesn't exist
+    inline arma::vec step_fun2(const arma::vec& x,
+                               const arma::vec& knots,
+                               const arma::vec& height)
+    {
+        // create a map for fast comparison
+        std::map<double, double> step_map;
+        for (size_t i {0}; i < knots.n_elem; ++i) {
+            step_map.insert(std::make_pair(knots(i), height(i)));
+        }
+        arma::vec res { arma::zeros(x.n_elem) };
+        std::map<double, double>::iterator it;
+        for (size_t i {0}; i < x.n_elem; ++i) {
+            it = step_map.upper_bound(x(i));
+            if (it == step_map.begin()) {
+                res(i) = height(0);
+            } else {
+                --it;
+                res(i) = it->second;
             }
         }
         return res;
@@ -645,6 +721,42 @@ namespace Intsurv {
         arma::uvec out { x };
         for (int i {0}; i < ran_xx.size(); ++i) {
             out(i) = ran_xx(i);
+        }
+        return out;
+    }
+
+    // generate cross-validation indices
+    // for given number of folds and number of observations
+    inline std::vector<arma::uvec> get_cv_test_index(
+        const unsigned long n_obs,
+        const unsigned long n_folds = 10
+        )
+    {
+        // number of observations must be at least two
+        if (n_obs < 2) {
+            throw std::range_error(
+                "Cross-validation needs at least two observations."
+                );
+        }
+        // number of folds is at most number of observations
+        if (n_folds > n_obs) {
+            throw std::range_error(
+                "Number of folds should be <= number of observations."
+                );
+        }
+        // define output
+        std::vector<arma::uvec> out;
+        // observation indices random permuted
+        arma::uvec obs_idx { arma::randperm(n_obs) };
+        // remaining number of observations
+        size_t re_n_obs { n_obs };
+        // determine the size of folds and indices one by one
+        for (size_t i {0}; i < n_folds; ++i) {
+            size_t fold_i { re_n_obs / (n_folds - i) };
+            size_t j { n_obs - re_n_obs };
+            arma::uvec idx_i { obs_idx.subvec(j, j + fold_i - 1) };
+            out.push_back(idx_i);
+            re_n_obs -= fold_i;
         }
         return out;
     }

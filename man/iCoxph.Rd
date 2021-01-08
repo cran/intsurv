@@ -4,8 +4,16 @@
 \alias{iCoxph}
 \title{Integrative Cox Model for Uncertain Event Times}
 \usage{
-iCoxph(formula, data, subset, na.action, contrasts = NULL,
-       start = iCoxph.start(), control = iCoxph.control(), ...)
+iCoxph(
+  formula,
+  data,
+  subset,
+  na.action,
+  contrasts = NULL,
+  start = iCoxph.start(),
+  control = iCoxph.control(),
+  ...
+)
 }
 \arguments{
 \item{formula}{\code{Survi} object specifying the covariates and response
@@ -83,7 +91,7 @@ An \code{\link{iCoxph-class}} object, whose slots include
 }
 }
 \description{
-Fit an integrative Cox model proposed by Wang et al. (2019) for
+Fit an integrative Cox model proposed by Wang et al. (2020) for
 right-censored survival data with uncertain event times due to imperfect
 data integration.
 }
@@ -104,9 +112,9 @@ fit <- bootSe(fit, B = 30)
 summary(fit)
 }
 \references{
-Wang, W., Aseltine, R., Chen, K., & Yan, J. (2019).  Integrative Survival
-Analysis with Uncertain Event Times in Application to a Suicide Risk
-Study. \emph{Annals of Applied Statistics}. (in press)
+Wang, W., Aseltine, R. H., Chen, K., & Yan, J. (2020). Integrative Survival
+Analysis with Uncertain Event Times in Application to A Suicide Risk
+Study. \emph{Annals of Applied Statistics}, 14(1), 51--73.
 }
 \seealso{
 \code{\link{iCoxph.start}} and \code{\link{iCoxph.control}}, respectively,

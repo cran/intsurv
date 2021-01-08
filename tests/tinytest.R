@@ -5,6 +5,6 @@ if (requireNamespace("tinytest", quietly = TRUE) &&
     set.seed(808)
 
     tinytest::test_package("intsurv",
-                           ncpu = getOption("Ncpus", 1),
+                           ncup = getOption("Ncpus", 1),
                            side_effects = TRUE)
 }

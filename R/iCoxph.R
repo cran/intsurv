@@ -1,6 +1,6 @@
 ##
 ## intsurv: Integrative Survival Models
-## Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+## Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 ##
 ## This file is part of the R package intsurv.
 ##
@@ -23,13 +23,9 @@ NULL
 
 ##' Integrative Cox Model for Uncertain Event Times
 ##'
-##' Fit an integrative Cox model proposed by Wang et al. (2019) for
+##' Fit an integrative Cox model proposed by Wang et al. (2020) for
 ##' right-censored survival data with uncertain event times due to imperfect
 ##' data integration.
-##'
-##' @usage
-##' iCoxph(formula, data, subset, na.action, contrasts = NULL,
-##'        start = iCoxph.start(), control = iCoxph.control(), ...)
 ##'
 ##' @param formula \code{Survi} object specifying the covariates and response
 ##'     variable in the model, such as \code{Survi(ID, time, event) ~ x1 + x2}.
@@ -100,9 +96,9 @@ NULL
 ##'
 ##' @references
 ##'
-##' Wang, W., Aseltine, R., Chen, K., & Yan, J. (2019).  Integrative Survival
-##' Analysis with Uncertain Event Times in Application to a Suicide Risk
-##' Study. \emph{Annals of Applied Statistics}. (in press)
+##' Wang, W., Aseltine, R. H., Chen, K., & Yan, J. (2020). Integrative Survival
+##' Analysis with Uncertain Event Times in Application to A Suicide Risk
+##' Study. \emph{Annals of Applied Statistics}, 14(1), 51--73.
 ##'
 ##' @example inst/examples/iCoxph.R
 ##'
@@ -331,11 +327,6 @@ iCoxph <- function(formula, data, subset, na.action, contrasts = NULL,
 ##' \code{gradtol}, \code{stepmax}, \code{steptol}, and \code{iterlim},
 ##' respectively.
 ##'
-##' @usage
-##' iCoxph.control(tol_beta = 1e-6, tol_pi = 1e-8, cm_gradtol = 1e-6,
-##'                cm_stepmax = 1e2, cm_steptol = 1e-6, cm_max_iter = 1e2,
-##'                ecm_max_iter = 2e2, ...)
-##'
 ##' @param tol_beta A positive value specifying the tolerance that concludes the
 ##'     convergence of the covariate coefficient estimates. The tolerance is
 ##'     compared with the relative change between the estimates from two
@@ -423,10 +414,6 @@ iCoxph.control <- function(tol_beta = 1e-6,
 ##' Auxiliary function for \code{\link{iCoxph}} that enable users
 ##' to specify the starting values of the model estimation procedure.
 ##'
-##' @usage
-##' iCoxph.start(beta_vec = NULL, beta_mat = NULL,
-##'              methods = c("nearest_hazard", "unit_hazard"), ...)
-##'
 ##' @param beta_vec A numeric vector for starting values of coefficient
 ##'     estimates. The default values are the coefficient estimates from the
 ##'     regular Cox model only fitting on records without uncertainty.  If
@@ -441,7 +428,7 @@ iCoxph.control <- function(tol_beta = 1e-6,
 ##'     are \code{"nearest_hazard"} for initializing baseline hazard by nearest
 ##'     (left) neighbor, and \code{"unit_hazard"} for initializing unit baseline
 ##'     hazard.  Partial matching on method names is supported for ease of
-##'     typing.  By default, both methods are used.  See Wang et al. (2019+) for
+##'     typing.  By default, both methods are used.  See Wang et al. (2020) for
 ##'     details of the initialization methods.
 ##' @param ... Other arguments for future usage.  A warning will be thrown if
 ##'     any invalid argument is specified.

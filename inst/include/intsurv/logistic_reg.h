@@ -1,6 +1,6 @@
 //
 // intsurv: Integrative Survival Models
-// Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+// Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 //
 // This file is part of the R package intsurv.
 //
@@ -29,6 +29,7 @@ namespace Intsurv {
     private:
         arma::mat x;            // (standardized) x
         arma::vec y;
+        arma::vec offset;       // offset term
         bool intercept;
         unsigned int int_intercept;
         bool standardize;       // is x standardized
@@ -98,10 +99,25 @@ namespace Intsurv {
             if (intercept) {
                 x = arma::join_horiz(arma::ones(x.n_rows), x);
             }
+            // initialize offset
+            this->set_offset(arma::zeros(1));
             y = y_;
         }
 
         // function members
+        // set offset
+        inline void set_offset(const arma::vec& offset_)
+        {
+            if (offset_.n_elem == x.n_rows) {
+                offset = offset_;
+            } else {
+                offset = arma::zeros(y.n_elem);
+            }
+        }
+        inline void reset_offset() {
+            set_offset(arma::zeros(y.n_elem));
+        }
+
         // transfer coef for standardized data to coef for non-standardized data
         inline void rescale_coef()
         {
@@ -278,7 +294,7 @@ namespace Intsurv {
     inline arma::vec LogisticReg::linkinv(const arma::vec& beta,
                                           const double& pmin = 1e-5) const
     {
-        arma::vec p_vec { 1 / (1 + arma::exp(- mat2vec(x * beta))) };
+        arma::vec p_vec { 1 / (1 + arma::exp(- mat2vec(x * beta) - offset)) };
         // special care prevents coef diverging
         // reference: Friedman, J., Hastie, T., & Tibshirani, R. (2010)
         for (size_t i {0}; i < p_vec.n_elem; ++i) {
@@ -306,7 +322,7 @@ namespace Intsurv {
         double res { 0 };
         arma::vec tmp { arma::zeros(2) };
         for (size_t i { 0 }; i < x.n_rows; ++i) {
-            double x_beta { arma::as_scalar(x.row(i) * beta) };
+            double x_beta { arma::as_scalar(x.row(i) * beta + offset(i)) };
             tmp[1] = x_beta;
             res += log_sum_exp(tmp) - y(i) * x_beta;
         }
@@ -361,7 +377,7 @@ namespace Intsurv {
     inline double LogisticReg::objective(const arma::vec& beta,
                                          arma::vec& grad) const
     {
-        arma::vec x_beta {x * beta};
+        arma::vec x_beta {x * beta + offset};
         arma::vec exp_x_beta {arma::exp(x_beta)};
         grad = x.t() * (exp_x_beta / (1 + exp_x_beta) - y);
         arma::vec y_x_beta {y % x_beta};
@@ -682,9 +698,13 @@ namespace Intsurv {
         arma::vec grad_beta { grad_zero }, strong_rhs { grad_beta };
 
         // large enough lambda for all-zero coef (except intercept)
-        this->l1_lambda_max =
-            arma::max(grad_zero.tail(n_predictor) /
-                      l1_penalty) / this->x.n_rows;
+        // excluding variable with zero penalty factor
+        arma::uvec active_l1_penalty { arma::find(l1_penalty > 0) };
+        grad_zero = grad_zero.tail(n_predictor);
+        this->l1_lambda_max = arma::max(
+            grad_zero.elem(active_l1_penalty) /
+            l1_penalty.elem(active_l1_penalty)
+            ) / this->x.n_rows;
 
         if (this->intercept) {
             l1_penalty = arma::join_vert(arma::zeros(1), l1_penalty);
@@ -830,7 +850,7 @@ namespace Intsurv {
         arma::vec strong_rhs { beta };
         l1_lambda_max =
             arma::max(grad_beta.tail(l1_penalty.n_elem) / l1_penalty) /
-            this->x.n_rows / std::max(alpha, 1e-10);
+            this->x.n_rows / std::max(alpha, 1e-3);
 
         // take unique lambda and sort descendingly
         lambda = arma::reverse(arma::unique(lambda));

@@ -1,6 +1,6 @@
 ##
 ## intsurv: Integrative Survival Models
-## Copyright (C) 2017-2019  Wenjie Wang <wjwang.stat@gmail.com>
+## Copyright (C) 2017-2021  Wenjie Wang <wang@wwenjie.org>
 ##
 ## This file is part of the R package intsurv.
 ##
@@ -21,25 +21,14 @@
 ##' For right-censored data, fit a regular Cox cure rate model (Kuk and Chen,
 ##' 1992; Sy and Taylor, 2000) via an EM algorithm.  For right-censored data
 ##' with uncertain event status, fit the Cox cure model proposed by Wang et
-##' al. (2019+).
-##'
-##' @usage
-##' cox_cure(surv_formula, cure_formula,
-##'          time, event, data, subset, contrasts = NULL,
-##'          bootstrap = 0, firth = FALSE, surv_start, cure_start,
-##'          em_max_iter = 200, em_rel_tol = 1e-5,
-##'          surv_max_iter = 30, surv_rel_tol = 1e-5,
-##'          cure_max_iter = 30, cure_rel_tol = 1e-5,
-##'          tail_completion = c("zero", "exp", "zero-tau"),
-##'          tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
-##'          verbose = FALSE, ...)
+##' al. (2020).
 ##'
 ##' @param surv_formula A formula object starting with \code{~} for the model
 ##'     formula in survival model part.  For Cox model, no intercept term is
 ##'     included even if an intercept is specified or implied in the model
 ##'     formula.  A model formula with an intercept term only is not allowed.
 ##' @param cure_formula A formula object starting with \code{~} for the model
-##'     formula in cure rate model part.  For logistic model, an intercept term
+##'     formula in incidence model part.  For logistic model, an intercept term
 ##'     is included by default and can be excluded by adding \code{+ 0} or
 ##'     \code{- 1} to the model formula.
 ##' @param time A numeric vector for the observed survival times.
@@ -68,13 +57,20 @@
 ##'     The default value is \code{FALSE} for fitting a regular logistic model.
 ##'     Notice that this argument is experimental and only available for regular
 ##'     Cox cure rate model currently.
-##' @param surv_start An optional numeric vector representing the starting
-##'     values for the Cox model component.  If not specified, the starting
-##'     values will be obtained from fitting a regular Cox model to events only.
-##' @param cure_start An optional numeric vector representing the starting
-##'     values for the logistic model component.  If not specified, the starting
-##'     values will be obtained from fitting a regular logistic model to the
+##' @param surv_start,cure_start An optional numeric vector representing the
+##'     starting values for the survival model component or the incidence model
+##'     component.  If \code{surv_start = NULL} is specified, the starting
+##'     values will be obtained from fitting a regular Cox to events only.
+##'     Similarly, if \code{cure_start = NULL} is specified, the starting values
+##'     will be obtained from fitting a regular logistic model to the
 ##'     non-missing event indicators.
+##' @param surv_offset,cure_offset An optional numeric vector representing the
+##'     offset term in the survival model compoent or the incidence model
+##'     component.  The function will internally try to find values of the
+##'     specified variable in the \code{data} first.  Alternatively, one or more
+##'     \code{offset} terms can be specified in the formula (by
+##'     \code{stats::offset()}).  If more than one offset terms are specified,
+##'     their sum will be used.
 ##' @param em_max_iter A positive integer specifying the maximum iteration
 ##'     number of the EM algorithm.  The default value is \code{200}.
 ##' @param em_rel_tol A positive number specifying the tolerance that determines
@@ -83,26 +79,18 @@
 ##'     relative change between estimates from two consecutive iterations, which
 ##'     is measured by ratio of the L1-norm of their difference to the sum of
 ##'     their L1-norm.  The default value is \code{1e-5}.
-##' @param surv_max_iter A positive integer specifying the maximum iteration
-##'     number of the M-step routine related to the survival model component.
-##'     The default value is \code{200}.
-##' @param surv_rel_tol A positive number specifying the tolerance that
-##'     determines the convergence of the M-step related to the survival model
-##'     component in terms of the convergence of the covariate coefficient
-##'     estimates.  The tolerance is compared with the relative change between
-##'     estimates from two consecutive iterations, which is measured by ratio of
-##'     the L1-norm of their difference to the sum of their L1-norm.  The
-##'     default value is \code{1e-5}.
-##' @param cure_max_iter A positive integer specifying the maximum iteration
-##'     number of the M-step routine related to the cure rate model component.
-##'     The default value is \code{200}.
-##' @param cure_rel_tol A positive number specifying the tolerance that
-##'     determines the convergence of the M-step related to the cure rate model
-##'     component in terms of the convergence of the covariate coefficient
-##'     estimates.  The tolerance is compared with the relative change between
-##'     estimates from two consecutive iterations, which is measured by ratio of
-##'     the L1-norm of their difference to the sum of their L1-norm.  The
-##'     default value is \code{1e-5}.
+##' @param surv_max_iter,cure_max_iter A positive integer specifying the maximum
+##'     iteration number of the M-step routine related to the survival model
+##'     component or the incidence model component.  The default value is
+##'     \code{200}.
+##' @param surv_rel_tol,cure_rel_tol A positive number specifying the tolerance
+##'     that determines the convergence of the M-step related to the survival
+##'     model component or the incidence model component in terms of the
+##'     convergence of the covariate coefficient estimates.  The tolerance is
+##'     compared with the relative change between estimates from two consecutive
+##'     iterations, which is measured by ratio of the L1-norm of their
+##'     difference to the sum of their L1-norm.  The default value is
+##'     \code{1e-5}.
 ##' @param tail_completion A character string specifying the tail completion
 ##'     method for conditional survival function.  The available methods are
 ##'     \code{"zero"} for zero-tail completion after the largest event times (Sy
@@ -147,9 +135,9 @@
 ##' Sy, J. P., & Taylor, J. M. (2000). Estimation in a Cox proportional hazards
 ##' cure model. \emph{Biometrics}, 56(1), 227--236.
 ##'
-##' Wang, W., Chen, K., Luo, C., & Yan, J. (2019+). Cox Cure Model with
-##' Uncertain Event Status with application to a Suicide Risk
-##' Study. \emph{Working in Progress}.
+##' Wang, W., Luo, C., Aseltine, R. H., Wang, F., Yan, J., & Chen, K. (2020).
+##' Suicide Risk Modeling with Uncertain Diagnostic Records. \emph{arXiv
+##' preprint arXiv:2009.02597}.
 ##'
 ##' @seealso
 ##'
@@ -157,11 +145,19 @@
 ##' elastic-net penalty.
 ##'
 ##' @example inst/examples/cox_cure.R
+##'
 ##' @export
-cox_cure <- function(surv_formula, cure_formula, time, event,
-                     data, subset, contrasts = NULL,
-                     bootstrap = 0, firth = FALSE,
-                     surv_start, cure_start,
+cox_cure <- function(surv_formula,
+                     cure_formula,
+                     time, event,
+                     data, subset,
+                     contrasts = NULL,
+                     bootstrap = 0,
+                     firth = FALSE,
+                     surv_start = NULL,
+                     cure_start = NULL,
+                     surv_offset = NULL,
+                     cure_offset = NULL,
                      em_max_iter = 200,
                      em_rel_tol = 1e-5,
                      surv_max_iter = 30,
@@ -172,7 +168,8 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
                      tail_tau = NULL,
                      pmin = 1e-5,
                      early_stop = TRUE,
-                     verbose = FALSE, ...)
+                     verbose = FALSE,
+                     ...)
 {
     ## warning on `...`
     warn_dots(...)
@@ -197,6 +194,8 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
     obs_event <- model_list$surv$obs_event
     surv_x <- model_list$surv$xMat
     cure_x <- model_list$cure$xMat
+    surv_offset <- model_list$surv$offset
+    cure_offset <- model_list$surv$offset
 
     ## cox model does not have an intercept
     surv_is_intercept <- colnames(surv_x) == "(Intercept)"
@@ -231,14 +230,26 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
         stop("No event can be found.")
     }
     ## starting values
-    if (missing(surv_start)) {
+    if (is.null(surv_start)) {
         surv_start <- 0
-    } else if (length(surv_start) != surv_x) {
+    } else if (length(surv_start) != ncol(surv_x)) {
         stop("The length of 'surv_start' is inappropriate.")
     }
-    if (missing(cure_start)) {
+    if (is.null(cure_start)) {
         cure_start <- 0
-    } else if (length(cure_start) != cure_x + as.integer(cure_intercept)) {
+    } else if (length(cure_start) != ncol(cure_x) +
+               as.integer(cure_intercept)) {
+        stop("The length of 'cure_start' is inappropriate.")
+    }
+    ## offset terms
+    if (is.null(surv_offset)) {
+        surv_offset <- rep(0, nrow(surv_x))
+    } else if (length(surv_offset) != nrow(surv_x)) {
+        stop("The length of 'surv_offset' is inappropriate.")
+    }
+    if (is.null(cure_offset)) {
+        cure_offset <- rep(0, nrow(cure_x))
+    } else if (length(cure_offset) != nrow(cure_x)) {
         stop("The length of 'cure_start' is inappropriate.")
     }
     ## on tail completion
@@ -271,6 +282,8 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
             bootstrap = bootstrap,
             cox_start = surv_start,
             cure_start = cure_start,
+            cox_offset = surv_offset,
+            cure_offset = cure_offset,
             cox_standardize = TRUE,
             cure_standardize = cure_standardize,
             em_max_iter = em_max_iter,
@@ -297,6 +310,8 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
             firth = firth,
             cox_start = surv_start,
             cure_start = cure_start,
+            cox_offset = surv_offset,
+            cure_offset = cure_offset,
             cox_standardize = TRUE,
             cure_standardize = cure_standardize,
             em_max_iter = em_max_iter,
@@ -349,18 +364,6 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
 
 ##' @rdname cox_cure
 ##'
-##' @usage
-##' cox_cure.fit(surv_x, cure_x, time, event, cure_intercept = TRUE,
-##'              bootstrap = 0, firth = FALSE, surv_start, cure_start,
-##'              surv_standardize = TRUE, cure_standardize = TRUE,
-##'              em_max_iter = 200, em_rel_tol = 1e-5,
-##'              surv_max_iter = 30, surv_rel_tol = 1e-5,
-##'              cure_max_iter = 30, cure_rel_tol = 1e-5,
-##'              tail_completion = c("zero", "exp", "zero-tau"),
-##'              tail_tau = NULL, pmin = 1e-5, early_stop = TRUE,
-##'              verbose = FALSE, ...)
-##'
-##'
 ##' @param surv_x A numeric matrix for the design matrix of the survival model
 ##'     component.
 ##' @param cure_x A numeric matrix for the design matrix of the cure rate model
@@ -381,12 +384,15 @@ cox_cure <- function(surv_formula, cure_formula, time, event,
 ##'     zero and standard deviation one.
 ##'
 ##' @export
-cox_cure.fit <- function(surv_x, cure_x, time, event,
+cox_cure.fit <- function(surv_x, cure_x,
+                         time, event,
                          cure_intercept = TRUE,
                          bootstrap = 0,
                          firth = FALSE,
-                         surv_start,
-                         cure_start,
+                         surv_start = NULL,
+                         cure_start = NULL,
+                         surv_offset = NULL,
+                         cure_offset = NULL,
                          surv_standardize = TRUE,
                          cure_standardize = TRUE,
                          em_max_iter = 200,
@@ -399,7 +405,8 @@ cox_cure.fit <- function(surv_x, cure_x, time, event,
                          tail_tau = NULL,
                          pmin = 1e-5,
                          early_stop = TRUE,
-                         verbose = FALSE, ...)
+                         verbose = FALSE,
+                         ...)
 {
     ## warning on `...`
     warn_dots(...)
@@ -416,14 +423,26 @@ cox_cure.fit <- function(surv_x, cure_x, time, event,
         stop("No event can be found.")
     }
     ## starting values
-    if (missing(surv_start)) {
+    if (is.null(surv_start)) {
         surv_start <- 0
-    } else if (length(surv_start) != surv_x) {
+    } else if (length(surv_start) != ncol(surv_x)) {
         stop("The length of 'surv_start' is inappropriate.")
     }
-    if (missing(cure_start)) {
+    if (is.null(cure_start)) {
         cure_start <- 0
-    } else if (length(cure_start) != cure_x + as.integer(cure_intercept)) {
+    } else if (length(cure_start) != ncol(cure_x) +
+               as.integer(cure_intercept)) {
+        stop("The length of 'cure_start' is inappropriate.")
+    }
+    ## offset terms
+    if (is.null(surv_offset)) {
+        surv_offset <- rep(0, nrow(surv_x))
+    } else if (length(surv_offset) != nrow(surv_x)) {
+        stop("The length of 'surv_offset' is inappropriate.")
+    }
+    if (is.null(cure_offset)) {
+        cure_offset <- rep(0, nrow(cure_x))
+    } else if (length(cure_offset) != nrow(cure_x)) {
         stop("The length of 'cure_start' is inappropriate.")
     }
     ## on tail completion
@@ -456,6 +475,8 @@ cox_cure.fit <- function(surv_x, cure_x, time, event,
             bootstrap = bootstrap,
             cox_start = surv_start,
             cure_start = cure_start,
+            cox_offset = surv_offset,
+            cure_offset = cure_offset,
             cox_standardize = surv_standardize,
             cure_standardize = cure_standardize,
             em_max_iter = em_max_iter,
@@ -482,6 +503,8 @@ cox_cure.fit <- function(surv_x, cure_x, time, event,
             firth = firth,
             cox_start = surv_start,
             cure_start = cure_start,
+            cox_offset = surv_offset,
+            cure_offset = cure_offset,
             cox_standardize = surv_standardize,
             cure_standardize = cure_standardize,
             em_max_iter = em_max_iter,
